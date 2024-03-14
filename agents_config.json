@@ -3,14 +3,18 @@
   "default_api_key": "app-88f364PXiOH9UdwtlvndndGk",
   "dify_agents": [
     {
-      "name": "Calculator",
-      "introduction": "Useful for when you need to answer questions about math.",
-      "api_key": "New York"
+      "name": "GoogleSearch",
+      "introduction": "Search for anything you don't know",
+      "api_key": "app-Kv7WONs5sX4yVWZKXEl5mJDT",
+      "response_mode": "streaming",
+      "mode":"chat"
     },
     {
-      "name": "Wikipedia",
-      "introduction": "A wrapper around Wikipedia. Useful for when you need to answer general questions about people, places, companies, facts, historical events, or other subjects. Input should be a search query.",
-      "api_key": "San Francisco"
+      "name": "WritePRD",
+      "introduction": "Complete product requirement document.",
+      "api_key": "San Francisco",
+      "response_mode": "blocking",
+      "mode":"metagpt"
     }
   ]
 }

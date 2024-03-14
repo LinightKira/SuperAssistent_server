@@ -12,3 +12,7 @@ def create_AINovelVideoDir(path: str):
     os.makedirs(tts_path, exist_ok=True)
     image_path = path + '/image'
     os.makedirs(image_path, exist_ok=True)
+
+
+def create_workspace(path: str):
+    os.makedirs(path, exist_ok=True)

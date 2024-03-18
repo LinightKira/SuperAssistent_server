@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 import threading
@@ -6,6 +7,7 @@ from http import HTTPStatus
 
 from flask import request, jsonify, Blueprint
 
+from app_agents.agents_request import get_metagpt_agents_result
 from app_server.models.agent import DifyAgent
 from app_server.tools.dify.dify_request import Make_dify_request
 from app_server.tools.file_tools import read_json_from_file
@@ -25,10 +27,14 @@ def assistant_main():
         if not msg_id:
             return jsonify({"code": HTTPStatus.BAD_REQUEST, "msg": "msg_id is empty."})
 
-        # 开一个线程 处理消息
-        t = threading.Thread(target=assistant_input_process, args=(input_data, msg_id,))  # 传入参数 一定要带着逗号，不然会报错
+        # # 开一个线程 处理消息-异步函数时候无法使用
+        # t = threading.Thread(target=assistant_input_process, args=(input_data, msg_id,))  # 传入参数 一定要带着逗号，不然会报错
+        # t.start()
+
+        t = threading.Thread(target=run_async, args=(assistant_input_process, input_data, msg_id))
         t.start()
-        # assistant_input_process(input_data)
+
+        # assistant_input_process(input_data,msg_id)
         return jsonify({"code": HTTPStatus.OK, "msg": "success"})
 
     except Exception as e:
@@ -37,7 +43,7 @@ def assistant_main():
 
 
 # 处理用户输入
-def assistant_input_process(input_data, msg_id):
+async def assistant_input_process(input_data, msg_id):
     # 使用read_json函数读取JSON文件
     config_json_data = read_json_from_file("./agents_config.json")
     api_key = config_json_data['main_api_key']
@@ -75,7 +81,6 @@ def assistant_input_process(input_data, msg_id):
     for agent in agents_list:
         if action == agent.name:
             # 找到匹配的 agent
-            print(f'start agent: {agent.name}')
             response_mode = agent.response_mode
             mode = agent.mode
             api_key = agent.api_key
@@ -96,19 +101,24 @@ def assistant_input_process(input_data, msg_id):
             "response_mode": response_mode,
             "user": "123456"
         }
-
-    response = Make_dify_request(api_key, payload, mode=mode)
-    # 这里需要根据response_mode来判断处理方式
-    if response_mode == 'streaming':
-        print('response_mode:', response_mode)
-        final_answer = response_streaming(response)
+    if mode == 'metagpt':
+        print('start metagpt')
+        final_answer = await get_metagpt_agents_result(input_data, action)
     else:
-        if response.status_code != HTTPStatus.OK:
-            print('response status_code:', response.status_code)
-            print('response:', response.text)
-        json_data = response.json()
-        final_answer = json_data.get('answer')
-    print('response answer:', final_answer)
+        print('start dify')
+        response = Make_dify_request(api_key, payload, mode=mode)
+        # 这里需要根据response_mode来判断处理方式
+        if response_mode == 'streaming':
+            print('response_mode:', response_mode)
+            final_answer = response_streaming(response)
+        else:
+            if response.status_code != HTTPStatus.OK:
+                print('response status_code:', response.status_code)
+                print('response:', response.text)
+            json_data = response.json()
+            final_answer = json_data.get('answer')
+        print('response answer:', final_answer)
+
     reply_msg_text(msg_id, final_answer)
 
 
@@ -178,21 +188,34 @@ def generate_parameters(json_data):
 
 
 # 从JSON文件中读取action数据
-def extract_action_info(text):
+def extract_action_info(input_string):
     print('action info')
-    print(text)
+    print(input_string)
+    action_start = input_string.find('"action":')
+    if action_start != -1:
+        # 提取action值
+        action_end = input_string.find(',', action_start)
+        action = input_string[action_start + 10:action_end].strip('" ')
+    else:
+        action = None
+
+    # 查找action_input的起始位置
+    input_start = input_string.find('"action_input":')
+    if input_start != -1:
+        # 提取action_input值
+        input_end = input_string.find('}', input_start)
+        action_input = input_string[input_start + 16:input_end].strip('" ')
+    else:
+        action_input = None
+
+    return action, action_input
+
+
+# 处理多线程运行异步函数
+def run_async(func, *args):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        # Use regular expressions to find the action and action_input values
-        match = re.search(r'"action": "(.*?)",\s*"action_input": "(.*?)"', text)
-
-        if match:
-            action = match.group(1)
-            action_input = match.group(2)
-            return action, action_input
-        else:
-            print("No match found.")
-            return None, None
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return None, None
+        return loop.run_until_complete(func(*args))
+    finally:
+        loop.close()

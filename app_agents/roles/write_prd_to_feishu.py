@@ -3,8 +3,6 @@
 # @Author  : 宏伟（散人）
 # @Desc    : 输出产品需求文档，并上传到飞书，完成后发送文件
 import asyncio
-import os
-import re
 from datetime import datetime
 from pathlib import Path
 
@@ -13,6 +11,7 @@ from app_agents.actions.feishu_reply_msg import reply_text_msg_to_feishu
 from app_agents.actions.upload_to_feishu import upload_to_feishu
 from app_agents.actions.write_file_name import write_file_name
 from app_agents.actions.write_prd import write_prd
+from app_server.tools.file_tools import write_file
 from metagpt.logs import logger
 from metagpt.roles import Role
 from metagpt.roles.role import RoleReactMode
@@ -46,8 +45,6 @@ class WritePRDTOFeishu(Role):
         self.profile = profile
         self.goal = goal
         self.workspace = Config.WORKSPACE_DIR + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        # # 创建工作目录
-        # create_workspace(self.workspace)
 
     async def _act(self) -> Message:
         todo = self.rc.todo
@@ -56,7 +53,7 @@ class WritePRDTOFeishu(Role):
             msg = self.get_memories(k=1)[0]  # 找到最相似的 k 条消息
             result = await todo.run(msg.content)
             logger.info(result)
-            # 写入文件
+            # 文件名
             self.main_title = result
             return Message(content=result, role=self.profile)
         # 写PRD
@@ -66,8 +63,11 @@ class WritePRDTOFeishu(Role):
             print('write prd:', result)
             logger.info(result)
             # 写入文件
-            self.file_path = await File.write(Path(self.workspace), f"{self.main_title}.md", result.encode('utf-8'))
+            # self.file_path = await File.write(Path(str(r"%s" % self.workspace)), f"{self.main_title}.md", result.encode('utf-8'))
+            self.file_path = await write_file(self.workspace, f"{self.main_title}.md", result.encode('utf-8'))
             print('file_path:', self.file_path)
+            if self.file_path is None:
+                return Message(content="error", role=self.profile)
             return Message(content=str(result), role=self.profile)
         if type(todo) is upload_to_feishu:
             file_token = await todo.run(self.file_path)
@@ -81,7 +81,8 @@ class WritePRDTOFeishu(Role):
                 to_send_message = "出错了，去看日志吧"
             else:
                 to_send_message = f"[{self.main_title}](https://uxsxrugqmxi.feishu.cn/file/{msg.content})"
-            result = await todo.run(to_send_message)
+            # result = await todo.run(to_send_message)  # 不需要执行，只需要返回需要回复的信息
+            result = to_send_message
             return Message(content=str(result), role=self.profile)
 
         resp = await todo.run()
@@ -89,11 +90,12 @@ class WritePRDTOFeishu(Role):
         return Message(content=resp, role=self.profile)
 
 
-async def start_write_prd_to_feishu(text: str = '', message_id: str = ''):
+async def start_write_prd_to_feishu(text: str = '', message_id: str = '') -> str:
     print('start write prd:', text)
     role = WritePRDTOFeishu(message_id=message_id)
     result = await role.run(text)
     logger.info(result)
+    return result.content
 
 
 if __name__ == '__main__':

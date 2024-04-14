@@ -11,7 +11,7 @@
     },
     {
       "name": "WritePRD",
-      "introduction": "Complete product requirement document.",
+      "introduction": "Complete product requirement document,like a PM.",
       "api_key": "San Francisco",
       "response_mode": "blocking",
       "mode":"metagpt"

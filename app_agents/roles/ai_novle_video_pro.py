@@ -60,12 +60,10 @@ class NovelToVideoAssistantPro(Role):
         if self.rc.todo is None:
             self._set_state(0)
             return
-
         if self.rc.state + 1 < len(self.states):
 
             self._set_state(self.rc.state + 1)
         else:
-
             self.rc.todo = None
 
     async def _react(self) -> Message:

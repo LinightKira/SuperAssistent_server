@@ -10,7 +10,7 @@ lerna-debug.log*
 fssl.key
 fssl.pem
 config.py
-
+agents_config.json
 
 workspace
 migrations

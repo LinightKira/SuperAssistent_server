@@ -7,7 +7,7 @@ from metagpt.logs import logger
 
 async def main():
     with app.app_context():
-        msg = "13"
+        msg = "4"
         role = NovelToVideoAssistantPro()
         logger.info(msg)
         result = await role.run(msg)

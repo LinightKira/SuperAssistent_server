@@ -1,6 +1,6 @@
 FROM python:3.10 as builder
 
-WORKDIR /home/Happiness_Server
+WORKDIR /home/SuperAssistent_Server
 
 COPY requirements.txt requirements.txt
 #RUN  pip install --upgrade pip
@@ -9,8 +9,13 @@ COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 COPY app_server app_server
+COPY app_agents app_agents
+COPY feishu_utils feishu_utils
+COPY MetaGPT MetaGPT
 COPY migrations migrations
-#COPY app.py config.py fssl.key fssl.pem ./
+#COPY config.py agents_config.json  ./
+#COPY app.py   ./
+#COPY fssl.key fssl.pem ./
 
 CMD ["flask","db","upgrade"]
 #CMD ["python", "init_db.py"]   #初始化数据库
